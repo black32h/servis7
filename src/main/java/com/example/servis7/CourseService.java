@@ -1,61 +1,45 @@
 package com.example.servis7;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class CourseUpdateService {
+public class CourseService {
 
-    private static final Logger logger = LoggerFactory.getLogger(CourseUpdateService.class);
+    private final CourseRepository courseRepository;
 
-    @Value("${course.service.url}")
-    private String courseServiceUrl;
-
-    @Value("${enrollment.service.url}")
-    private String enrollmentServiceUrl;
-
-    private final RestTemplate restTemplate;
-
-    public CourseUpdateService(RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
+    public CourseService(CourseRepository courseRepository) {
+        this.courseRepository = courseRepository;
     }
 
-    public List<String> updateCourseDescriptions() {
-        List<String> updatedCourses = new ArrayList<>();
+    // Метод для створення нового курсу
+    public Course createCourse(Course course) {
+        return courseRepository.save(course);
+    }
 
-        try {
-            // Отримуємо всі курси
-            String coursesUrl = courseServiceUrl + "/courses";
-            Course[] allCourses = restTemplate.getForObject(coursesUrl, Course[].class);
+    // Метод для отримання курсу за його id
+    public Course getCourseById(Long id) {
+        return courseRepository.findById(id).orElseThrow(() -> new RuntimeException("Course not found"));
+    }
 
-            if (allCourses != null) {
-                for (Course course : allCourses) {
-                    // Отримуємо список студентів для курсу
-                    String enrollmentUrl = enrollmentServiceUrl + "/enrollments/courses/" + course.getId();
-                    Long[] enrolledStudents = restTemplate.getForObject(enrollmentUrl, Long[].class);
+    // Метод для оновлення курсу
+    public Course updateCourse(Long id, Course course) {
+        Course existingCourse = getCourseById(id);
+        existingCourse.setName(course.getName());
+        existingCourse.setDescription(course.getDescription());
+        existingCourse.setInstructor(course.getInstructor());
+        return courseRepository.save(existingCourse);
+    }
 
-                    // Якщо студентів немає, оновлюємо опис курсу
-                    if (enrolledStudents == null || enrolledStudents.length == 0) {
-                        course.setDescription(course.getDescription() + " Набір студентів ще не відкрито.");
-                        restTemplate.put(courseServiceUrl + "/courses/" + course.getId(), course);
-                        updatedCourses.add(course.getName());
-                    } else {
-                        logger.info("Курс '{}' вже має студентів. Оновлення не потрібне.", course.getName());
-                    }
-                }
-            } else {
-                logger.warn("Не вдалося отримати курси за адресою: {}", coursesUrl);
-            }
-        } catch (Exception e) {
-            logger.error("Помилка при оновленні опису курсів: {}", e.getMessage(), e);
-        }
+    // Метод для видалення курсу
+    public void deleteCourse(Long id) {
+        courseRepository.deleteById(id);
+    }
 
-        return updatedCourses;
+    // Метод для отримання всіх курсів
+    public List<Course> getAllCourses() {
+        return courseRepository.findAll();
     }
 }
+
